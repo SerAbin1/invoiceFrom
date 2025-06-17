@@ -11,12 +11,11 @@ const Form = () => {
     customerName: "",
     place: "",
     date: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14),
-    gstin: "",
     materials: [
-      { description: "", hsn: "", qty: "", unitPrice: "", discount: "", taxes: "", amount: "" }
+      { description: "", hsn: "", qty: "", unitPrice: "", amount: "" }
     ],
     terms: [""],
-    paymentTerm: "Immediate payment"
+    quoteIntro: "We are pleased to quote our best prices for the following items"
   });
 
   const [submittedData, setSubmittedData] = useState(null);
@@ -25,7 +24,7 @@ const Form = () => {
   const updateMaterial = (index, field, value) => {
     const materials = [...formData.materials];
 
-    if (["qty", "unitPrice", "discount", "taxes"].includes(field)) {
+    if (["qty", "unitPrice"].includes(field)) {
       const numericValue = parseFloat(value);
       if (numericValue < 0) return;
     }
@@ -33,9 +32,7 @@ const Form = () => {
     materials[index][field] = value;
     const qty = parseFloat(materials[index].qty) || 0;
     const unitPrice = parseFloat(materials[index].unitPrice) || 0;
-    const discount = parseFloat(materials[index].discount) || 0;
-    const taxes = parseFloat(materials[index].taxes) || 0;
-    materials[index].amount = ((qty * unitPrice) * (1 - discount / 100)) * (1 + taxes / 100);
+    materials[index].amount = qty * unitPrice;
     setFormData({ ...formData, materials });
   };
 
@@ -48,7 +45,7 @@ const Form = () => {
   const addMaterial = () => {
     setFormData({
       ...formData,
-      materials: [...formData.materials, { description: "", hsn: "", qty: "", unitPrice: "", discount: "", taxes: "", amount: "" }]
+      materials: [...formData.materials, { description: "", hsn: "", qty: "", unitPrice: "", amount: "" }]
     });
   };
 
@@ -68,7 +65,6 @@ const Form = () => {
     const requiredFields = [
       { name: "Customer Name", value: formData.customerName },
       { name: "Place", value: formData.place },
-      { name: "GSTIN", value: formData.gstin },
     ];
 
     for (let i = 0; i < formData.materials.length; i++) {
@@ -77,8 +73,6 @@ const Form = () => {
       if (!mat.hsn.trim()) return alert(`Material ${i + 1}: HSN is required.`);
       if (!mat.qty.toString().trim()) return alert(`Material ${i + 1}: Quantity is required.`);
       if (!mat.unitPrice.toString().trim()) return alert(`Material ${i + 1}: Unit Price is required.`);
-      if (!mat.discount.toString().trim()) return alert(`Material ${i + 1}: Discount is required.`);
-      if (!mat.taxes.toString().trim()) return alert(`Material ${i + 1}: Taxes is required.`);
     }
 
     for (const field of requiredFields) {
@@ -115,22 +109,27 @@ const Form = () => {
       hsn: mat.hsn,
       qty: Number(mat.qty),
       unitPrice: Number(mat.unitPrice),
-      discount: Number(mat.discount),
-      tax: Number(mat.taxes),
       amount: Number(mat.amount),
     }));
 
-    const untaxedAmount = items.reduce((acc, item) => acc + (item.qty * item.unitPrice) * (1 - item.discount / 100), 0);
+    const untaxedAmount = items.reduce((acc, item) => acc + item.amount, 0);
     const sgst = untaxedAmount * 0.09;
     const cgst = untaxedAmount * 0.09;
     const total = untaxedAmount + sgst + cgst;
 
+    const now = new Date();
+    const quotationNo = "ITA" +
+      String(now.getDate()).padStart(2, '0') +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      now.getFullYear() +
+      String(now.getHours()).padStart(2, '0') +
+      String(now.getMinutes()).padStart(2, '0');
+
     const payload = {
       date: submittedData.date,
-      quotationNo: "QT001",
+      quotationNo,
       recipientName: submittedData.customerName,
       recipientAddress: submittedData.place,
-      recipientGSTIN: submittedData.gstin,
       items,
       untaxedAmount,
       sgst,
@@ -156,11 +155,10 @@ const Form = () => {
 
   return submittedData ? (
     <div className="confirmation">
-      <h2>Invoice Preview</h2>
+      <h2>Quotation Preview</h2>
       <p><strong>Customer:</strong> {submittedData.customerName}</p>
       <p><strong>Location:</strong> {submittedData.place}</p>
       <p><strong>Date:</strong> {submittedData.date}</p>
-      <p><strong>GSTIN:</strong> {submittedData.gstin}</p>
 
       <h3>Materials</h3>
       <table>
@@ -185,9 +183,7 @@ const Form = () => {
         {submittedData.terms.map((term, idx) => <li key={idx}>{term}</li>)}
       </ul>
 
-      <p><strong>Payment Term:</strong> {submittedData.paymentTerm}</p>
-
-      <button className="submit-button" onClick={sendInvoice}>Generate Invoice</button>
+      <button className="submit-button" onClick={sendInvoice}>Generate Quotation</button>
       <button className="edit-button" onClick={goBackToEdit}>Edit Details</button>
     </div>
   ) : (
@@ -195,7 +191,7 @@ const Form = () => {
       <input placeholder="Customer Name" value={formData.customerName} onChange={e => setFormData({ ...formData, customerName: e.target.value })} />
       <input placeholder="Place" value={formData.place} onChange={e => setFormData({ ...formData, place: e.target.value })} />
       <input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
-      <input placeholder="GSTIN" value={formData.gstin} onChange={e => setFormData({ ...formData, gstin: e.target.value })} />
+      <input value={formData.quoteIntro} onChange={e => setFormData({ ...formData, quoteIntro: e.target.value })} />
       <h3>Materials</h3>
       {formData.materials.map((mat, i) => (
         <div key={i} className="material-row">
@@ -207,8 +203,6 @@ const Form = () => {
           <input placeholder="HSN" value={mat.hsn} onChange={e => updateMaterial(i, 'hsn', e.target.value)} />
           <input type="number" placeholder="Qty" value={mat.qty} onChange={e => updateMaterial(i, 'qty', e.target.value)} />
           <input type="number" placeholder="Unit Price" value={mat.unitPrice} onChange={e => updateMaterial(i, 'unitPrice', e.target.value)} />
-          <input type="number" placeholder="Discount %" value={mat.discount} onChange={e => updateMaterial(i, 'discount', e.target.value)} />
-          <input type="number" placeholder="Taxes %" value={mat.taxes} onChange={e => updateMaterial(i, 'taxes', e.target.value)} />
           <button type="button" onClick={() => removeMaterial(i)}>Remove</button>
         </div>
       ))}
@@ -225,11 +219,6 @@ const Form = () => {
         </div>
       ))}
       <button type="button" onClick={addTerm}>Add Term</button>
-      <h3>Payment Terms</h3>
-      <input list="paymentTerms" value={formData.paymentTerm} onChange={e => setFormData({ ...formData, paymentTerm: e.target.value })} />
-      <datalist id="paymentTerms">
-        <option value="Immediate payment" />
-      </datalist>
       <button type="submit">Submit</button>
     </form>
   );
