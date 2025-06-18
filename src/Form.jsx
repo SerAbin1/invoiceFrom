@@ -21,6 +21,7 @@ const Form = () => {
     materials: [
       { description: "", hsn: "", qty: "", unitPrice: "", amount: "" }
     ],
+    installationCharge: "",
     selectedDefaultTerms: Array(defaultTerms.length).fill(false),
     customTerms: [""],
     quoteIntro: "We are pleased to quote our best prices for the following items"
@@ -110,7 +111,8 @@ const Form = () => {
       amount: Number(mat.amount),
     }));
 
-    const untaxedAmount = items.reduce((acc, item) => acc + item.amount, 0);
+    const installationCharge = parseFloat(submittedData.installationCharge) || 0;
+const untaxedAmount = items.reduce((acc, item) => acc + item.amount, 0) + installationCharge;
     const sgst = untaxedAmount * 0.09;
     const cgst = untaxedAmount * 0.09;
     const total = untaxedAmount + sgst + cgst;
@@ -129,6 +131,7 @@ const Form = () => {
       recipientName: submittedData.customerName,
       recipientAddress: submittedData.place,
       items,
+      installationCharge,
       untaxedAmount,
       sgst,
       cgst,
@@ -141,7 +144,7 @@ const Form = () => {
     };
 
     try {
-      const res = await axios.post("http://localhost:3001/geninvoice", payload);
+      const res = await axios.post("https://jobqueue.onrender.com/genquotation", payload);
       setSubmissionResponse(res.data);
       alert("Invoice sent successfully");
     } catch (err) {
@@ -200,7 +203,7 @@ const Form = () => {
       {formData.materials.map((mat, i) => (
         <div key={i} className="material-row">
             <div>{i + 1}</div>
-            <input list="materials" value={mat.description} onChange={e => updateMaterial(i, 'description', e.target.value)} />
+            <input list="materials" placeholder="Description" value={mat.description} onChange={e => updateMaterial(i, 'description', e.target.value)} />
             <datalist id="materials">
             {materialsFromBackend.map((m, idx) => <option key={idx} value={m} />)}
             </datalist>
@@ -211,6 +214,15 @@ const Form = () => {
         </div>
       ))}
       <button type="button" onClick={addMaterial}>Add Material</button>
+      <h3>Installation Charges</h3>
+<input
+  type="number"
+  min="0"
+  placeholder="Installation Charges (₹)"
+  value={formData.installationCharge}
+  onChange={e => setFormData({ ...formData, installationCharge: e.target.value })}
+/>
+
       <h3>Terms & Conditions</h3>
 
 <h4>Default Terms</h4>
