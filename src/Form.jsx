@@ -6,6 +6,13 @@ const materialsFromBackend = [
   "Cement", "Bricks", "Sand", "Steel", "Paint"
 ];
 
+const defaultTerms = [
+  "70% of advance payment due before installation.",
+  "Delivery within 7 working days from order confirmation.",
+  "Warranty as per manufacturer terms.",
+  "This quotation is valid for 14 days."
+];
+
 const Form = () => {
   const [formData, setFormData] = useState({
     customerName: "",
@@ -14,7 +21,8 @@ const Form = () => {
     materials: [
       { description: "", hsn: "", qty: "", unitPrice: "", amount: "" }
     ],
-    terms: [""],
+    selectedDefaultTerms: Array(defaultTerms.length).fill(false),
+    customTerms: [""],
     quoteIntro: "We are pleased to quote our best prices for the following items"
   });
 
@@ -47,16 +55,6 @@ const Form = () => {
       ...formData,
       materials: [...formData.materials, { description: "", hsn: "", qty: "", unitPrice: "", amount: "" }]
     });
-  };
-
-  const addTerm = () => {
-    setFormData({ ...formData, terms: [...formData.terms, ""] });
-  };
-
-  const removeTerm = (index) => {
-    const terms = [...formData.terms];
-    terms.splice(index, 1);
-    setFormData({ ...formData, terms });
   };
 
   const handleSubmit = (e) => {
@@ -136,7 +134,10 @@ const Form = () => {
       cgst,
       total,
       totalInWords: toWords(Math.round(total)) + " Rupees only",
-      terms: submittedData.terms,
+      terms: [
+    ...defaultTerms.filter((_, i) => formData.selectedDefaultTerms[i]),
+    ...formData.customTerms.filter(t => t.trim() !== "")
+  ],
     };
 
     try {
@@ -180,7 +181,10 @@ const Form = () => {
 
       <h4>Terms</h4>
       <ul>
-        {submittedData.terms.map((term, idx) => <li key={idx}>{term}</li>)}
+        {[...defaultTerms.filter((_, i) => submittedData.selectedDefaultTerms[i]),
+    ...submittedData.customTerms.filter(t => t.trim() !== "")]
+    .map((term, idx) => <li key={idx}>{term}</li>)
+  }
       </ul>
 
       <button className="submit-button" onClick={sendInvoice}>Generate Quotation</button>
@@ -195,30 +199,60 @@ const Form = () => {
       <h3>Materials</h3>
       {formData.materials.map((mat, i) => (
         <div key={i} className="material-row">
-          <div>{i + 1}</div>
-          <input list="materials" value={mat.description} onChange={e => updateMaterial(i, 'description', e.target.value)} />
-          <datalist id="materials">
+            <div>{i + 1}</div>
+            <input list="materials" value={mat.description} onChange={e => updateMaterial(i, 'description', e.target.value)} />
+            <datalist id="materials">
             {materialsFromBackend.map((m, idx) => <option key={idx} value={m} />)}
-          </datalist>
-          <input placeholder="HSN" value={mat.hsn} onChange={e => updateMaterial(i, 'hsn', e.target.value)} />
-          <input type="number" placeholder="Qty" value={mat.qty} onChange={e => updateMaterial(i, 'qty', e.target.value)} />
-          <input type="number" placeholder="Unit Price" value={mat.unitPrice} onChange={e => updateMaterial(i, 'unitPrice', e.target.value)} />
-          <button type="button" onClick={() => removeMaterial(i)}>Remove</button>
+            </datalist>
+            <input placeholder="HSN" value={mat.hsn} onChange={e => updateMaterial(i, 'hsn', e.target.value)} />
+            <input type="number" placeholder="Qty" value={mat.qty} onChange={e => updateMaterial(i, 'qty', e.target.value)} />
+            <input type="number" placeholder="Unit Price" value={mat.unitPrice} onChange={e => updateMaterial(i, 'unitPrice', e.target.value)} />
+            <button type="button" onClick={() => removeMaterial(i)}>Remove</button>
         </div>
       ))}
       <button type="button" onClick={addMaterial}>Add Material</button>
       <h3>Terms & Conditions</h3>
-      {formData.terms.map((term, i) => (
-        <div key={i} className="term-row">
-          <input value={term} onChange={e => {
-            const terms = [...formData.terms];
-            terms[i] = e.target.value;
-            setFormData({ ...formData, terms });
-          }} />
-          <button type="button" onClick={() => removeTerm(i)}>Remove</button>
-        </div>
-      ))}
-      <button type="button" onClick={addTerm}>Add Term</button>
+
+<h4>Default Terms</h4>
+{defaultTerms.map((term, i) => (
+  <label key={i} className="term-checkbox">
+    <input
+      type="checkbox"
+      checked={formData.selectedDefaultTerms[i]}
+      onChange={() => {
+        const updated = [...formData.selectedDefaultTerms];
+        updated[i] = !updated[i];
+        setFormData({ ...formData, selectedDefaultTerms: updated });
+      }}
+    />
+    {term}
+  </label>
+))}
+
+<h4>Custom Terms</h4>
+{formData.customTerms.map((term, i) => (
+  <div key={i} className="term-row">
+    <input
+      value={term}
+      onChange={e => {
+        const updated = [...formData.customTerms];
+        updated[i] = e.target.value;
+        setFormData({ ...formData, customTerms: updated });
+      }}
+    />
+    <button type="button" onClick={() => {
+      const updated = [...formData.customTerms];
+      updated.splice(i, 1);
+      setFormData({ ...formData, customTerms: updated });
+    }}>Remove</button>
+  </div>
+))}
+<button type="button" onClick={() => setFormData({
+  ...formData,
+  customTerms: [...formData.customTerms, ""]
+})}>
+  Add Custom Term
+</button>
       <button type="submit">Submit</button>
     </form>
   );
